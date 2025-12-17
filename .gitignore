@@ -1,4 +1,10 @@
 .DS_Store
+__pycache__/
 
 ComOD-dataset/assets/
 ComOD-dataset/data/
+
+.venv/
+logs/
+
+outputs/

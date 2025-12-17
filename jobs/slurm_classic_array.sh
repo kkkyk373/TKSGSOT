@@ -35,7 +35,7 @@ echo "Parameters: condition=${PARAM_COND}, alpha=${PARAM_ALPHA} (dummy), seed=${
 echo "----------------------"
 
 # Paths can be overridden via environment variables to keep the script anonymized.
-VENV_ACTIVATE="${VENV_ACTIVATE:-${PROJECT_ROOT}/env/bin/activate}"
+VENV_ACTIVATE="${VENV_ACTIVATE:-${PROJECT_ROOT}/.venv/bin/activate}"
 DATA_DIR="${DATA_DIR:-${PROJECT_ROOT}/ComOD-dataset/data}"
 FGW_DIR="${FGW_DIR:-${PROJECT_ROOT}/ComOD-dataset/fgw_dist_matrice}"
 TARGETS_BASE="${TARGETS_BASE:-${PROJECT_ROOT}/comod_source_target_lists}"

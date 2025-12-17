@@ -1,0 +1,18 @@
+[project]
+name = "tksgsot"
+version = "0.1.0"
+description = "ComOD selective experiments"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "scikit-learn==1.5.2",
+    "pot==0.9.5",
+    "torch==2.7.0",
+    "numpy==2.1.2",
+    "matplotlib==3.10.1",
+    "geopandas==1.0.1",
+    "tqdm>=4.66.1",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

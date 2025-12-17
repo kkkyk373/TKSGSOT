@@ -13,7 +13,6 @@ import os
 import sys
 import datetime
 import json
-import wandb
 
 
 def load_fgw_distances(fgw_dir, alpha):
@@ -121,12 +120,6 @@ def train_and_evaluate_dgm(X_train, y_train, X_test, y_test, target_id, args):
         
         avg_epoch_loss = epoch_loss / len(train_loader.dataset)
         print(f"    Epoch {epoch+1}/{args.epochs}, Train Loss: {avg_epoch_loss:.6f}", flush=True)
-        if wandb.run is not None:
-            wandb.log({
-                "target_id": target_id,
-                "epoch": epoch + 1,
-                "train_loss": avg_epoch_loss
-            })
 
     model.eval()
     with torch.no_grad():
@@ -134,15 +127,6 @@ def train_and_evaluate_dgm(X_train, y_train, X_test, y_test, target_id, args):
         pred = pred_tensor.cpu().numpy()
 
     mse = mean_squared_error(y_test, pred)
-    if wandb.run is not None:
-        wandb.log({
-            "target_id": target_id,
-            "status": "success",
-            "mse": mse,
-            "train_samples": len(y_train),
-            "test_samples": len(y_test)
-        })
-
     if args.model_output_dir:
         model_save_dir = os.path.join(
             args.model_output_dir,
@@ -258,13 +242,6 @@ def run_all_targets(area_ids, dist_mat, source_ids, args):
                 print(f"   -> MSE: {mse_val:.4f} (train_n={len(y_train)}, test_n={len(y_test)})\n", flush=True)
             else:
                 print(f"   -> Skipped: {status}\n", flush=True)
-                if wandb.run is not None:
-                    wandb.log({
-                        "target_id": target,
-                        "status": status,
-                        "train_samples": len(y_train),
-                        "test_samples": len(y_test)
-                    })
 
         except Exception as e:
             print(f"   [ERROR] Failed on target {target}: {e}\n", file=sys.stderr, flush=True)
@@ -273,12 +250,6 @@ def run_all_targets(area_ids, dist_mat, source_ids, args):
                 "train_samples": 0, "status": "error", "error_message": str(e)
             }
             results_list.append(error_item)
-            if wandb.run is not None:
-                wandb.log({
-                    "target_id": target,
-                    "status": "error",
-                    "error_message": str(e)
-                })
             
     return results_list
 
@@ -318,60 +289,44 @@ def main():
         torch.cuda.manual_seed_all(args.seed)
     os.environ['PYTHONHASHSEED'] = str(args.seed)
 
-    run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    wandb_project = os.getenv("WANDB_PROJECT", "tgss_dgm")
-    run_name = f"dgm-{args.condition}-alpha{args.alpha}-seed{args.seed}-{run_timestamp}"
-    wandb.init(
-        project=wandb_project,
-        name=run_name,
-        group=f"condition_{args.condition}",
-        config=vars(args)
+    # --- Data Loading ---
+    area_ids, dist_mat = load_fgw_distances(args.fgw_dir, args.alpha)
+    with open(args.sources_path) as f:
+        source_ids = [line.strip() for line in f if line.strip()]
+
+    # --- Run Evaluation ---
+    evaluation_results = run_all_targets(area_ids, dist_mat, source_ids, args)
+
+    # --- Save Results ---
+    execution_time = datetime.datetime.now()
+    final_output = {
+        "metadata": vars(args),
+        "results": evaluation_results
+    }
+    final_output["metadata"]["execution_datetime"] = execution_time.isoformat()
+
+    results_save_dir = os.path.join(
+        args.results_dir, "dgm", "raw", 
+        args.condition, 
+        f"alpha{args.alpha}", 
+        f"seed{args.seed}"
     )
+    os.makedirs(results_save_dir, exist_ok=True)
 
-    try:
-        # --- Data Loading ---
-        area_ids, dist_mat = load_fgw_distances(args.fgw_dir, args.alpha)
-        with open(args.sources_path) as f:
-            source_ids = [line.strip() for line in f if line.strip()]
+    param_str = (
+        f"ms{args.max_samples}"
+        f"_bs{args.batch_size}"
+        f"_ep{args.epochs}"
+    )
+    timestamp_str = execution_time.strftime("%Y%m%d_%H%M%S")
+    fname = f"{param_str}_{timestamp_str}.json"
 
-        # --- Run Evaluation ---
-        evaluation_results = run_all_targets(area_ids, dist_mat, source_ids, args)
+    output_path = os.path.join(results_save_dir, fname)
 
-        # --- Save Results ---
-        execution_time = datetime.datetime.now()
-        final_output = {
-            "metadata": vars(args),
-            "results": evaluation_results
-        }
-        final_output["metadata"]["execution_datetime"] = execution_time.isoformat()
-        if wandb.run is not None:
-            final_output["metadata"]["wandb_run_id"] = wandb.run.id
+    with open(output_path, 'w') as f:
+        json.dump(final_output, f, indent=4)
 
-        results_save_dir = os.path.join(
-            args.results_dir, "dgm", "raw", 
-            args.condition, 
-            f"alpha{args.alpha}", 
-            f"seed{args.seed}"
-        )
-        os.makedirs(results_save_dir, exist_ok=True)
-
-        param_str = (
-            f"ms{args.max_samples}"
-            f"_bs{args.batch_size}"
-            f"_ep{args.epochs}"
-        )
-        timestamp_str = execution_time.strftime("%Y%m%d_%H%M%S")
-        fname = f"{param_str}_{timestamp_str}.json"
-
-        output_path = os.path.join(results_save_dir, fname)
-
-        with open(output_path, 'w') as f:
-            json.dump(final_output, f, indent=4)
-
-        print(f"\n[INFO] Successfully saved evaluation results to: {output_path}")
-
-    finally:
-        wandb.finish()
+    print(f"\n[INFO] Successfully saved evaluation results to: {output_path}")
 
 
 if __name__ == "__main__":
