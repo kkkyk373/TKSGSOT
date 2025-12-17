@@ -43,6 +43,19 @@ ComOD-dataset/
     └── fgw_dist_<alpha>.dat    # memory-mapped FGW distances
 ```
 
+If you need to regenerate the FGW distances locally, run `src/experiments/fgw.py`. The script iterates over the `data/` subfolders, computes all pairwise FGW distances, and writes the outputs directly under `ComOD-dataset/fgw_dist_matrice/` (or a custom destination via the CLI flags):
+
+```bash
+python src/experiments/fgw.py \
+  --data_dir ComOD-dataset/data \
+  --alpha 0.5 \
+  --n_graphs 100 \
+  --ids_bin ComOD-dataset/fgw_dist_matrice/fgw_area_ids.npy \
+  --dist_bin ComOD-dataset/fgw_dist_matrice/fgw_dist_50.dat
+```
+
+The resulting `fgw_area_ids.npy` captures the ordered list of areas used when building the matrix, and `fgw_dist_*.dat` stores the corresponding symmetric FGW distance matrix in memory-mapped form for the experiment scripts.
+
 Set the environment variables below if you store the dataset elsewhere (the defaults point to the structure above):
 
 ```
