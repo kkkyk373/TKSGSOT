@@ -26,8 +26,6 @@ for seed in "${SEEDS[@]}"; do
     PARAMS+=("random 0 ${seed}")
 done
 
-echo "[INFO] Prepared ${#PARAMS[@]} runs."
-
 # Paths can be overridden via environment variables to keep the script anonymized.
 VENV_ACTIVATE="${VENV_ACTIVATE:-${PROJECT_ROOT}/.venv/bin/activate}"
 DATA_DIR="${DATA_DIR:-${PROJECT_ROOT}/ComOD-dataset/data}"
@@ -35,8 +33,51 @@ FGW_DIR="${FGW_DIR:-${PROJECT_ROOT}/ComOD-dataset/fgw_dist_matrice}"
 TARGETS_BASE="${TARGETS_BASE:-${PROJECT_ROOT}/comod_source_target_lists}"
 SOURCES_BASE="${SOURCES_BASE:-${PROJECT_ROOT}/comod_source_target_lists}"
 RESULTS_DIR="${RESULTS_DIR:-${PROJECT_ROOT}/results}"
-MODEL_OUTPUT_DIR="${MODEL_OUTPUT_DIR:-${PROJECT_ROOT}/outputs}"
+MODEL_OUTPUT_DIR_DEFAULT="${MODEL_OUTPUT_DIR:-${PROJECT_ROOT}/outputs}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
+
+print_usage() {
+    echo "Usage: $0 [--save-models] [index ...]"
+    echo "  --save-models    Enable model checkpoint saving (default: off)"
+    echo "  --no-save-models Disable model checkpoint saving"
+    echo "  -h, --help       Show this help"
+}
+
+SAVE_MODELS=0
+TASK_LIST=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --save-models)
+            SAVE_MODELS=1
+            shift
+            ;;
+        --no-save-models)
+            SAVE_MODELS=0
+            shift
+            ;;
+        -h|--help)
+            print_usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "[ERROR] Unknown option: $1" >&2
+            print_usage
+            exit 1
+            ;;
+        *)
+            TASK_LIST+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ "$#" -gt 0 ]; then
+    TASK_LIST+=("$@")
+fi
 
 run_task() {
     local idx="$1"
@@ -56,12 +97,18 @@ run_task() {
     local OUT_FILE="${LOG_DIR}/${JOB_ID}_seed${PARAM_SEED}_${TS}.out"
     local ERR_FILE="${LOG_DIR}/${JOB_ID}_seed${PARAM_SEED}_${TS}.err"
 
+    local MODEL_OUTPUT_DIR_EFFECTIVE=""
+    if [ "${SAVE_MODELS}" -eq 1 ]; then
+        MODEL_OUTPUT_DIR_EFFECTIVE="${MODEL_OUTPUT_DIR_DEFAULT}"
+    fi
+
     (
         exec >"${OUT_FILE}" 2>"${ERR_FILE}"
         echo "--- DGM Unified Experiment (local) ---"
         echo "Job ID: ${JOB_ID}, Index: ${idx}"
         echo "Timestamp: $(date)"
         echo "Parameters: condition=${PARAM_COND}, alpha=${PARAM_ALPHA}, seed=${PARAM_SEED}"
+        echo "Save models: $([ "${SAVE_MODELS}" -eq 1 ] && echo yes || echo no)"
         echo "----------------------"
 
         if [ -f "${VENV_ACTIVATE}" ]; then
@@ -77,7 +124,7 @@ run_task() {
             --targets_path "${TARGETS_BASE}/targets_seed${PARAM_SEED}.txt" \
             --sources_path "${SOURCES_BASE}/sources_seed${PARAM_SEED}.txt" \
             --results_dir "${RESULTS_DIR}" \
-            --model_output_dir "${MODEL_OUTPUT_DIR}" \
+            --model_output_dir "${MODEL_OUTPUT_DIR_EFFECTIVE}" \
             --condition "${PARAM_COND}" \
             --alpha "${PARAM_ALPHA}" \
             --seed "${PARAM_SEED}" \
@@ -93,11 +140,12 @@ run_task() {
     echo "[INFO] Finished index ${idx} (${PARAM_COND}, alpha=${PARAM_ALPHA}, seed=${PARAM_SEED}). Logs -> ${OUT_FILE}"
 }
 
-# If indexes are provided as arguments, run only those; otherwise, run all.
-if [ "$#" -gt 0 ]; then
-    TASK_LIST=("$@")
-else
+# If indexes are provided, run only those; otherwise, run all.
+if [ "${#TASK_LIST[@]}" -eq 0 ]; then
     TASK_LIST=("${!PARAMS[@]}")
+    echo "[INFO] Prepared ${#PARAMS[@]} runs."
+else
+    echo "[INFO] Selected ${#TASK_LIST[@]} runs out of ${#PARAMS[@]}."
 fi
 
 for idx in "${TASK_LIST[@]}"; do

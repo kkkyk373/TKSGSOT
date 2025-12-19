@@ -41,7 +41,10 @@ Dependencies are pinned in `pyproject.toml` / `uv.lock`. WandB is not used.
 
 ## Data Layout
 
-Place the ComOD dataset under `ComOD-dataset/` (or override with env vars below):
+Download the ComOD dataset from:
+https://github.com/tsinghua-fib-lab/CommutingODGen-Dataset/tree/main
+
+Place it under `ComOD-dataset/` (or override with env vars below):
 
 ```
 ComOD-dataset/
@@ -89,9 +92,9 @@ Flags are shared across models; DGM also uses `--epochs/--batch_size/--lr`. `con
 
 All three sweep scripts share the same grid: seeds 0–9; `alpha` in {0,50,100} for `topk`/`bottomk`; `alpha=0` for `all`/`random`; total 80 runs.
 
-- DGM: `bash jobs/bash_dgm_array.sh`
-- SVR: `bash jobs/bash_svr_array.sh`
-- RF : `bash jobs/bash_rf_array.sh`
+- DGM: `bash jobs/bash_dgm_array.sh` (default: no model saving; add `--save-models` to enable)
+- SVR: `bash jobs/bash_svr_array.sh` (default: no model saving; add `--save-models` to enable)
+- RF : `bash jobs/bash_rf_array.sh` (default: no model saving; add `--save-models` to enable)
 
 Behavior:
 - No args ⇒ run all 80.
