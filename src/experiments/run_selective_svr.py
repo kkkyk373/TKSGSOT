@@ -93,7 +93,7 @@ def train_and_evaluate_svr(X_train, y_train, X_test, y_test, target_id, args):
     model.fit(X_train, y_train)
     
     pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, pred)
+    mse = float(mean_squared_error(y_test, pred))
 
     if args.model_output_dir:
         model_save_dir = os.path.join(
@@ -167,8 +167,11 @@ def run_all_targets(area_ids, dist_mat, source_ids, args):
                 status = "success" if not np.isnan(mse_val) else "skipped_nan_mse"
 
             result_item = {
-                "target_id": target, "mse": mse_val, "test_samples": len(y_test),
-                "train_samples": len(y_train), "status": status
+                "target_id": target,
+                "mse": float(mse_val) if mse_val is not None else None,
+                "test_samples": len(y_test),
+                "train_samples": len(y_train),
+                "status": status
             }
             results_list.append(result_item)
             

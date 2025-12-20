@@ -126,7 +126,7 @@ def train_and_evaluate_dgm(X_train, y_train, X_test, y_test, target_id, args):
         pred_tensor = model(X_test_tensor.to(device))
         pred = pred_tensor.cpu().numpy()
 
-    mse = mean_squared_error(y_test, pred)
+    mse = float(mean_squared_error(y_test, pred))
     if args.model_output_dir:
         model_save_dir = os.path.join(
             args.model_output_dir,
@@ -231,7 +231,7 @@ def run_all_targets(area_ids, dist_mat, source_ids, args):
             # --- 4. Store the metrics ---
             result_item = {
                 "target_id": target,
-                "mse": mse_val if mse_val is not None else None,
+                "mse": float(mse_val) if mse_val is not None else None,
                 "test_samples": len(y_test),
                 "train_samples": len(y_train),
                 "status": status
